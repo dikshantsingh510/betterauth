@@ -1,8 +1,13 @@
 name: Auto Approve & Merge
- 
+
 on:
-  pull_request:
+  pull_request_target:
     types: [opened, ready_for_review, synchronize, labeled]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
 
 jobs:
   auto-approve-and-merge:
@@ -64,5 +69,3 @@ jobs:
             } else {
               core.info("ℹ️ Skipping merge. No automerge label found");
             }
-
-
