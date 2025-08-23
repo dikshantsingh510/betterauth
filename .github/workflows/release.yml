@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     branches:
-      - main
+      - main   # ✅ Run on every push to main
 
 permissions:
   contents: write
@@ -17,7 +17,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # required for semantic-release to read tags
+          fetch-depth: 0   # ✅ needed so semantic-release sees full history
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -25,9 +25,10 @@ jobs:
           node-version: 20
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci   # ✅ faster and reproducible (instead of npm install)
 
       - name: Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # NPM_TOKEN: ${{ secrets.NPM_TOKEN }} # add if publishing to npm
         run: npx semantic-release
