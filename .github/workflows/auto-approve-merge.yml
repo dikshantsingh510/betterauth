@@ -1,0 +1,71 @@
+name: Auto Approve & Merge
+
+on:
+  pull_request_target:
+    types: [opened, ready_for_review, synchronize, labeled]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  auto-approve-and-merge:
+    # ✅ Run only when PR targets `main` and you are the PR author
+    if: github.base_ref == 'main' && github.actor == 'dikshantsingh510'
+    runs-on: ubuntu-latest
+    steps:
+      # ✅ Auto-approve your PR
+      - uses: hmarr/auto-approve-action@v3
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # ✅ Check last commit for [automerge] keyword
+      - uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const pr = context.payload.pull_request;
+            const commits = await github.rest.pulls.listCommits({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number
+            });
+
+            const lastCommit = commits.data[commits.data.length - 1];
+            if (lastCommit.commit.message.toLowerCase().includes("[automerge]")) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+                labels: ["automerge"]
+              });
+              core.info("✅ Added automerge label from last commit message");
+            }
+
+      # ✅ Merge only if PR has automerge label
+      - uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const pr = context.payload.pull_request;
+            const labels = pr.labels.map(l => l.name);
+
+            if (labels.includes("automerge")) {
+              await github.rest.pulls.merge({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr.number,
+                merge_method: "squash"
+              });
+
+              await github.rest.issues.removeLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+                name: "automerge"
+              });
+              core.info("✅ PR merged into main and automerge label removed");
+            } else {
+              core.info("ℹ️ Skipping merge. No automerge label found");
+            }
