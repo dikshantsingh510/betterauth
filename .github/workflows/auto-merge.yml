@@ -1,0 +1,38 @@
+name: Auto Merge
+
+on:
+  pull_request:
+    types: [opened, ready_for_review, synchronize, labeled]
+
+jobs:
+  auto-merge:
+    if: github.event.pull_request.base.ref == 'main' && github.actor == 'dikshantsingh510'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check last commit for [automerge]
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const pr = context.payload.pull_request;
+            const commits = await github.rest.pulls.listCommits({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number
+            });
+
+            const lastCommit = commits.data[commits.data.length - 1];
+            if (lastCommit.commit.message.toLowerCase().includes("[automerge]")) {
+              core.info("✅ Found [automerge] in last commit message. Merging PR...");
+
+              await github.rest.pulls.merge({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr.number,
+                merge_method: "squash"
+              });
+
+              core.info("✅ PR merged into main");
+            } else {
+              core.info("ℹ️ Skipping merge. No [automerge] keyword found in last commit.");
+            }
