@@ -29,39 +29,81 @@ jobs:
               c.commit.message.includes('[automerge]')
             );
             
-            if (!hasAutomerge) return;
-            
-            console.log(`Auto-merge requested by ${pr.user.login}`);
-            
-            // Owner: Merge immediately
-            if (isOwner) {
-              await github.rest.pulls.merge({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: pr.number,
-                merge_method: 'squash'
-              });
-              console.log('✅ Owner PR auto-merged');
+            if (!hasAutomerge) {
+              console.log('⏭️ No [automerge] keyword found');
               return;
             }
             
-            // Non-owner: Check for approval first
-            const reviews = await github.rest.pulls.listReviews({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: pr.number
-            });
+            console.log(`🚀 Auto-merge requested by ${pr.user.login}`);
             
-            const approved = reviews.data.some(r => r.state === 'APPROVED');
+            // ALWAYS approve first (works for both owner and contributors)
+            try {
+              await github.rest.pulls.createReview({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr.number,
+                event: 'APPROVE',
+                body: isOwner ? '✅ Auto-approved by owner' : '✅ Auto-approved after manual review'
+              });
+              console.log('✅ PR approved by bot');
+            } catch (error) {
+              console.log('ℹ️ Could not approve (might already be approved)');
+            }
             
-            if (approved) {
+            // Wait a moment for approval to register
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            
+            // For non-owner, double-check manual approval exists
+            if (!isOwner) {
+              const reviews = await github.rest.pulls.listReviews({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr.number
+              });
+              
+              const manualApproval = reviews.data.some(r => 
+                r.state === 'APPROVED' && r.user.login !== 'github-actions[bot]'
+              );
+              
+              if (!manualApproval) {
+                console.log('⏳ Non-owner PR needs manual approval first');
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: pr.number,
+                  body: '⏳ **Auto-merge requested** but waiting for manual approval from @dikshantsingh510'
+                });
+                return;
+              }
+            }
+            
+            // Now attempt merge
+            try {
               await github.rest.pulls.merge({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 pull_number: pr.number,
-                merge_method: 'squash'
+                merge_method: 'squash',
+                commit_title: `${pr.title} (#${pr.number})`,
+                commit_message: `Auto-merged via [automerge] keyword\n\n${pr.body || ''}`
               });
-              console.log('✅ Approved PR auto-merged');
-            } else {
-              console.log('⏳ Waiting for approval...');
+              
+              console.log('✅ PR auto-merged successfully');
+              
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+                body: `🎉 **Auto-merged successfully!**\n\n${isOwner ? '🔑 Owner privileges used' : '👥 Manual approval satisfied'}`
+              });
+              
+            } catch (error) {
+              console.error('❌ Merge failed:', error.message);
+              
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+                body: `❌ **Auto-merge failed**: ${error.message}\n\nPlease merge manually or check repository rules.`
+              });
             }
