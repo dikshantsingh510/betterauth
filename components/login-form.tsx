@@ -48,6 +48,9 @@ export const LoginForm = () => {
         <Input type="password" id="password" name="password" />
       </div>
 
+
+{/* Testing auto merge */}
+
       <Button type="submit" className="w-full">
         Login
       </Button>
