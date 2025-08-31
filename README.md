@@ -395,31 +395,33 @@ jobs:
       github.event.pull_request.base.ref == 'main' &&
       !github.event.pull_request.draft
     runs-on: ubuntu-latest
+    
     steps:
       - uses: actions/github-script@v7
         with:
+          github-token: ${{ secrets.RELEASE_TOKEN }}
           script: |
             const pr = context.payload.pull_request;
             const isOwner = pr.user.login === 'dikshantsingh510';
-
+            
             // Check for [automerge] keyword
             const commits = await github.rest.pulls.listCommits({
               owner: context.repo.owner,
               repo: context.repo.repo,
               pull_number: pr.number
             });
-
+            
             const hasAutomerge = commits.data.some(c => 
               c.commit.message.includes('[automerge]')
             );
-
+            
             if (!hasAutomerge) {
               console.log('⏭️ No [automerge] keyword found');
               return;
             }
-
+            
             console.log(`🚀 Auto-merge requested by ${pr.user.login}`);
-
+            
             // ALWAYS approve first (works for both owner and contributors)
             try {
               await github.rest.pulls.createReview({
@@ -433,10 +435,10 @@ jobs:
             } catch (error) {
               console.log('ℹ️ Could not approve (might already be approved)');
             }
-
+            
             // Wait a moment for approval to register
             await new Promise(resolve => setTimeout(resolve, 3000));
-
+            
             // For non-owner, double-check manual approval exists
             if (!isOwner) {
               const reviews = await github.rest.pulls.listReviews({
@@ -460,7 +462,7 @@ jobs:
                 return;
               }
             }
-
+            
             // Now attempt merge
             try {
               await github.rest.pulls.merge({
