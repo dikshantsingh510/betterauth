@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { nextCookies } from "better-auth/next-js";
 import { createAuthMiddleware, APIError } from "better-auth/api";
 import { normalizeName, VALID_DOMAINS } from "./utils";
+import { UserRole } from "./generated/prisma";
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
@@ -38,6 +39,27 @@ export const auth = betterAuth({
         };
       }
     }),
+  },
+  databaseHooks: {
+    user: {
+      create: {
+        before: async (user) => {
+          const ADMIN_EMAIL = process.env.ADMIN_EMAIL?.split(";") ?? [];
+          if (ADMIN_EMAIL.includes(user.email)) {
+            return { data: { ...user, role: "ADMIN" } };
+          }
+          return { data: user };
+        },
+      },
+    },
+  },
+  user: {
+    additionalFields: {
+      role: {
+        type: ["USER", "ADMIN"] as Array<UserRole>,
+        input: false,
+      },
+    },
   },
   session: {
     expiresIn: 30 * 24 * 60 * 60, // 30 days
