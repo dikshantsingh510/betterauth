@@ -3,8 +3,9 @@ import {
   PlaceholderDeleteUserButton,
 } from "@/components/delete-user-button";
 import { ReturnHomeButton } from "@/components/return-home-button";
+import UserRoleSelect from "@/components/user-role-select";
 import { auth } from "@/lib/auth";
-import prisma from "@/lib/prisma";
+import { UserRole } from "@/lib/generated/prisma";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -33,9 +34,10 @@ export default async function Page() {
     );
   }
 
-  const users = await prisma.user.findMany({
-    orderBy: {
-      name: "asc",
+  const { users } = await auth.api.listUsers({
+    headers: headersList,
+    query: {
+      sortBy: "name",
     },
   });
 
@@ -78,7 +80,7 @@ export default async function Page() {
 
           <tbody>
             {sortedUsers.map((user) => {
-            //   if (user.id === session.user.id) return null;
+              //   if (user.id === session.user.id) return null;
 
               return (
                 <tr key={user.id} className="border-b text-sm text-left">
@@ -86,10 +88,10 @@ export default async function Page() {
                   <td className="px-4 py-2">{user.name}</td>
                   <td className="px-4 py-2">{user.email}</td>
                   <td className="px-4 py-2 text-center">
-                    {/* <UserRoleSelect
-                    userId={user.id}
-                    role={user.role as UserRole}
-                  /> */}
+                    <UserRoleSelect
+                      userId={user.id}
+                      role={user.role as UserRole}
+                    />
                   </td>
                   <td className="px-4 py-2 text-center">
                     {user.role === "USER" ? (
