@@ -14,6 +14,13 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum UserRole {
+  USER
+  ADMIN
+}
+
+
+
 model User {
   id        String   @id
   updatedAt DateTime
@@ -23,6 +30,8 @@ model User {
   email         String
   emailVerified Boolean
   image         String?
+  role          UserRole @default(USER)
+
 
   sessions Session[]
   accounts Account[]
