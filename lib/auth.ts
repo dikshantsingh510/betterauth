@@ -7,10 +7,13 @@ import { normalizeName, VALID_DOMAINS } from "./utils";
 import { UserRole } from "./generated/prisma";
 import { admin } from "better-auth/plugins";
 import { ac, roles } from "./permittions";
+import { sendEmailAction } from "@/actions/send-email.action";
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
+  baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000", // Add this
+  basePath: "/api/auth",
   socialProviders: {
     google: {
       clientId: process.env.GOOGLE_CLIENT_ID as string,
@@ -25,6 +28,30 @@ export const auth = betterAuth({
     enabled: true,
     minPasswordLength: 6,
     autoSignIn: false,
+    requireEmailVerification: true,
+  },
+  emailVerification: {
+    sendOnSignUp: true,
+    expiresIn: 60 * 60, // 1 hour,
+    autoSignInAfterVerification: true,
+    sendVerificationEmail: async ({ user, url }) => {
+      const link = new URL(url);
+      link.searchParams.set("callbackURL", "/auth/verify");
+      // console.log("📧 Sending verification email to:", user.email);
+      // console.log("🔗 Verification URL:", link);
+
+      // const result =
+      await sendEmailAction({
+        to: user.email,
+        subject: "Verify your email address",
+        meta: {
+          description:
+            "Please verify your email address to complete the registration process.",
+          link: String(link.href),
+        },
+      });
+      // console.log("✅ Email send result:", result);
+    },
   },
   hooks: {
     before: createAuthMiddleware(async (ctx) => {

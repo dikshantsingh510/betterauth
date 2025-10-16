@@ -18,7 +18,7 @@ export function normalizeName(name: string) {
 
 //? Function to allow cretain domains  only
 export const VALID_DOMAINS = () => {
-  const domains = ["gmail.com", "outlook.com", "yahoo.com", "hotmail.com", ""];
+  const domains = ["gmail.com", "outlook.com", "yahoo.com", "hotmail.com", "tomorjerry.com"];
 
   if (process.env.NODE_ENV === "development") {
     domains.push("example.com");
