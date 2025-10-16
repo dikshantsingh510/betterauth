@@ -29,10 +29,20 @@ export const auth = betterAuth({
     minPasswordLength: 6,
     autoSignIn: false,
     requireEmailVerification: true,
+    sendResetPassword: async ({ user, url }) => {
+      await sendEmailAction({
+        to: user.email,
+        subject: "Reset your password",
+        meta: {
+          description: "Please click the link below to reset your password.",
+          link: String(url),
+        },
+      });
+    },
   },
   emailVerification: {
     sendOnSignUp: true,
-    expiresIn: 60 * 60, // 1 hour,
+    // expiresIn: 60 * 60, // 1 hour,
     autoSignInAfterVerification: true,
     sendVerificationEmail: async ({ user, url }) => {
       const link = new URL(url);
