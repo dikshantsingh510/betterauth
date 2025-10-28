@@ -1,4 +1,5 @@
 import { LoginForm } from "@/components/login-form";
+import { MagicLinkLoginForm } from "@/components/magic-link-login-form";
 
 import { ReturnButton } from "@/components/return-button";
 import { SignInOauthButton } from "@/components/sign-in-oauth-button";
@@ -14,7 +15,7 @@ export default function Page() {
       </div>
 
       <div className="space-y-4">
-        {/* <MagicLinkLoginForm /> */}
+        <MagicLinkLoginForm />
 
         <LoginForm />
 

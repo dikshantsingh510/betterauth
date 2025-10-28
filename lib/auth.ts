@@ -1,14 +1,15 @@
-import { betterAuth } from "better-auth";
+import { betterAuth, type BetterAuthOptions } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import prisma from "@/lib/prisma";
 import { nextCookies } from "better-auth/next-js";
 import { createAuthMiddleware, APIError } from "better-auth/api";
 import { normalizeName, VALID_DOMAINS } from "./utils";
 import { UserRole } from "./generated/prisma";
-import { admin } from "better-auth/plugins";
+import { admin, customSession, magicLink } from "better-auth/plugins";
 import { ac, roles } from "./permittions";
 import { sendEmailAction } from "@/actions/send-email.action";
-export const auth = betterAuth({
+
+const options = {
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
@@ -87,6 +88,20 @@ export const auth = betterAuth({
           },
         };
       }
+      if (ctx.path === "/sign-in/magic-link") {
+        const name = normalizeName(ctx.body.name);
+
+        return {
+          context: { ...ctx, body: { ...ctx.body, name } },
+        };
+      }
+      if (ctx.path === "/update-user") {
+        const name = normalizeName(ctx.body.name);
+
+        return {
+          context: { ...ctx, body: { ...ctx.body, name } },
+        };
+      }
     }),
   },
   databaseHooks: {
@@ -112,6 +127,10 @@ export const auth = betterAuth({
   },
   session: {
     expiresIn: 30 * 24 * 60 * 60, // 30 days
+    cookieCache: {
+      enabled: true,
+      maxAge: 5 * 60, // 5 minutes
+    },
   },
   account: {
     accountLinking: {
@@ -126,6 +145,42 @@ export const auth = betterAuth({
       ac,
       roles,
     }),
+    magicLink({
+      sendMagicLink: async ({ email, url }) => {
+        await sendEmailAction({
+          to: email,
+          subject: "Magic Link Login",
+          meta: {
+            description: "Please click the link below to log in.",
+            link: String(url),
+          },
+        });
+      },
+    }),
+  ],
+} satisfies BetterAuthOptions;
+export const auth = betterAuth({
+  ...options,
+  plugins: [
+    ...(options.plugins ?? []),
+    customSession(async ({ user, session }) => {
+      return {
+        session: {
+          expiresAt: session.expiresAt,
+          token: session.token,
+          userAgent: session.userAgent,
+        },
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          image: user.image,
+          createdAt: user.createdAt,
+          role: user.role,
+          giraffeFact: "giraffes can sometimes nap with one eye open",
+        },
+      };
+    }, options),
   ],
 });
 
